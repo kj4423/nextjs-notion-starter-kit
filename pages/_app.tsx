@@ -1,5 +1,6 @@
 // global styles shared across the entire site
 import * as React from 'react'
+
 import type { AppProps } from 'next/app'
 import { useRouter } from 'next/router'
 
@@ -52,8 +53,8 @@ function restoreScrollPosition(
 
 export default function App({ Component, pageProps }: AppProps) {
   const router = useRouter()
-  const asPath = useRef(router.asPath)
-  const positions = useRef<{ [key: string]: number }>({})
+  const asPath = React.useRef(router.asPath)
+  const positions = React.useRef<{ [key: string]: number }>({})
   const updatePosition = (url: string, position: number) => {
     // console.log('[SCROLL_POSITION]', 'update', url, position)
     positions.current = { ...positions.current, [url]: position }
