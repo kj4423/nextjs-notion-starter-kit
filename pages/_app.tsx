@@ -50,7 +50,7 @@ function restoreScrollPosition(
   }
 }
 
-export default function useKeepScrollPosition() {
+export default function App({ Component, pageProps }: AppProps) {
   const router = useRouter()
   const asPath = useRef(router.asPath)
   const positions = useRef<{ [key: string]: number }>({})
@@ -59,7 +59,27 @@ export default function useKeepScrollPosition() {
     positions.current = { ...positions.current, [url]: position }
   }
 
-  useEffect(() => {
+  React.useEffect(() => {
+    function onRouteChangeComplete() {
+      if (fathomId) {
+        Fathom.trackPageview()
+      }
+
+      if (posthogId) {
+        posthog.capture('$pageview')
+      }
+    }
+
+    if (fathomId) {
+      Fathom.load(fathomId, fathomConfig)
+    }
+
+    if (posthogId) {
+      posthog.init(posthogId, posthogConfig)
+    }
+
+    router.events.on('routeChangeComplete', onRouteChangeComplete)
+
     if ('scrollRestoration' in window.history) {
       const element = document.documentElement
       let shouldScrollRestore = false
@@ -93,38 +113,13 @@ export default function useKeepScrollPosition() {
       })
 
       return () => {
+        router.events.off('routeChangeComplete', onRouteChangeComplete)
         window.removeEventListener('beforeunload', handleBeforeUnload)
         router.events.off('routeChangeStart', handleRouteChangeStart)
         router.events.off('routeChangeComplete', handleRouteChangeComplete)
         router.beforePopState(() => true)
       }
     }
-  }, [])
-}
-
-export default function App({ Component, pageProps }: AppProps) {
-  const router = useRouter()
-
-  React.useEffect(() => {
-    function onRouteChangeComplete() {
-      if (fathomId) {
-        Fathom.trackPageview()
-      }
-
-      if (posthogId) {
-        posthog.capture('$pageview')
-      }
-    }
-
-    if (fathomId) {
-      Fathom.load(fathomId, fathomConfig)
-    }
-
-    if (posthogId) {
-      posthog.init(posthogId, posthogConfig)
-    }
-
-    router.events.on('routeChangeComplete', onRouteChangeComplete)
 
     return () => {
       router.events.off('routeChangeComplete', onRouteChangeComplete)
