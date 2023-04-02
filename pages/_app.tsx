@@ -32,6 +32,76 @@ if (!isServer) {
   bootstrap()
 }
 
+// Save the scroll position for the given url
+function saveScrollPosition(url: string, element: HTMLElement, savePosition: (url: string, pos: number) => void) {
+  savePosition(url, element.scrollTop)
+}
+
+// Restore the scroll position for the given url is possible
+function restoreScrollPosition(
+  url: string,
+  element: HTMLElement,
+  positions: React.RefObject<{ [key: string]: number }>
+) {
+  const position = positions.current[url]
+  if (position) {
+    // console.log('[SCROLL_POSITION]', 'restore', url, position)
+    element.scrollTo({ top: position })
+  }
+}
+
+export default function useKeepScrollPosition() {
+  const router = useRouter()
+  const asPath = useRef(router.asPath)
+  const positions = useRef<{ [key: string]: number }>({})
+  const updatePosition = (url: string, position: number) => {
+    // console.log('[SCROLL_POSITION]', 'update', url, position)
+    positions.current = { ...positions.current, [url]: position }
+  }
+
+  useEffect(() => {
+    if ('scrollRestoration' in window.history) {
+      const element = document.documentElement
+      let shouldScrollRestore = false
+      window.history.scrollRestoration = 'manual'
+
+      const handleBeforeUnload = (event: BeforeUnloadEvent) => {
+        saveScrollPosition(router.asPath, element, updatePosition)
+        delete event.returnValue
+      }
+
+      const handleRouteChangeStart = (url: string) => {
+        if (url !== asPath.current) {
+          saveScrollPosition(asPath.current, element, updatePosition)
+        }
+      }
+
+      const handleRouteChangeComplete = (url: string) => {
+        asPath.current = url
+        if (shouldScrollRestore) {
+          shouldScrollRestore = false
+          restoreScrollPosition(url, element, positions)
+        }
+      }
+
+      window.addEventListener('beforeunload', handleBeforeUnload)
+      router.events.on('routeChangeStart', handleRouteChangeStart)
+      router.events.on('routeChangeComplete', handleRouteChangeComplete)
+      router.beforePopState(() => {
+        shouldScrollRestore = true
+        return true
+      })
+
+      return () => {
+        window.removeEventListener('beforeunload', handleBeforeUnload)
+        router.events.off('routeChangeStart', handleRouteChangeStart)
+        router.events.off('routeChangeComplete', handleRouteChangeComplete)
+        router.beforePopState(() => true)
+      }
+    }
+  }, [])
+}
+
 export default function App({ Component, pageProps }: AppProps) {
   const router = useRouter()
 
